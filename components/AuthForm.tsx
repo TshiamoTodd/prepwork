@@ -13,6 +13,10 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import FormField from './FormField'
 import { useRouter } from 'next/navigation'
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth'
+import { auth } from '@/firebase/client'
+import { signIn, SignUp } from '@/lib/auth.action'
+import {Loader2} from 'lucide-react'
  
 
 
@@ -25,6 +29,7 @@ const authFormSchema = (type: FormType) => {
 }
 
 const AuthForm = ({type}: {type: FormType}) => {
+  const [loading, setLoading] = React.useState(false)
   const router = useRouter()
   const formSchema = authFormSchema(type)
 
@@ -37,12 +42,44 @@ const AuthForm = ({type}: {type: FormType}) => {
     },
   })
  
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
+      setLoading(true)
       if (type === 'sign-up') {
+        const {name, email, password} = values
+
+        const userCredentials = await createUserWithEmailAndPassword(auth, email, password)
+
+        const result = await SignUp({
+          uid: userCredentials.user.uid,
+          name: name!,
+          email: email!,
+          password: password!
+        })
+
+        if (!result?.success) {
+          toast.error(result?.message)
+          return
+        }
+
         toast.success('Account created successfully. Please sign in')
         router.push('/sign-in')
       } else {
+        const {email, password} = values
+
+        const userCredentials = await signInWithEmailAndPassword(auth, email, password)
+
+        const idToken = await userCredentials.user.getIdToken()
+
+        if(!idToken) {
+          toast.error('Sign in failed')
+          return
+        }
+
+        await signIn({
+          email, idToken
+        })
+
         toast.success('Signed in successfully')
         router.push('/')
       }
@@ -50,6 +87,8 @@ const AuthForm = ({type}: {type: FormType}) => {
       console.error(error)
       toast.error(`There was an errror ${error}`)
       
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -88,7 +127,7 @@ const AuthForm = ({type}: {type: FormType}) => {
                         placeholder="Enter your Password" 
                         type='password'
                     />
-                    <Button type="submit" className='btn'>{isSignIn ? 'Sign In ' : 'Create an account'}</Button>
+                    <Button type="submit" className='btn'>{loading ? <Loader2 className='animate-spin size-4'/> : isSignIn ? 'Sign In ' : 'Create an account'}</Button>
                 </form>
             </Form>
             <p className='text-center'>
