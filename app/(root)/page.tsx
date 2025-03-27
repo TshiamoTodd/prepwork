@@ -1,11 +1,23 @@
 import InterviewCard from '@/components/InterviewCard'
 import { Button } from '@/components/ui/button'
 import { dummyInterviews } from '@/constants'
+import { getCurrentUser, getInterviewByUserId, getLatestInterviews } from '@/lib/auth.action'
 import Image from 'next/image'
 import Link from 'next/link'
 import React from 'react'
 
-const Page = () => {
+const Page = async () => {
+  const user = await getCurrentUser()
+
+  const [userInterviews, latestInterviews] = await Promise.all([
+    getInterviewByUserId(user?.id!),
+    getLatestInterviews({userId: user?.id!})
+  ])
+
+  const hasPastInterviews = userInterviews && userInterviews.length > 0
+  const hasUpcomingInterviews = latestInterviews && latestInterviews.length > 0
+
+
   return (
     <>
       <section className='card-cta'>
@@ -25,26 +37,32 @@ const Page = () => {
       <section className='flex flex-col gap-6 mt-8'>
         <h2>Your Interviews</h2>
         <div className='interviews-section'>
-          {dummyInterviews.map((interview) => (
-            <InterviewCard {...interview} key={interview.id}/>
-          ))}
+          {
+            hasPastInterviews ? (
+              userInterviews?.map((interview) => (
+                <InterviewCard {...interview} key={interview.id}/>
 
-          {dummyInterviews.length === 0 && (
-            <p>You have&apos;t taken any interviews yet.</p>
-          )}
+              ))
+            ) : (
+              <p>You have&apos;t taken any interviews yet.</p>
+            )
+          }
         </div>
       </section>
 
       <section className='flex flex-col gap-6 mt-8'>
         <h2>Take an interview</h2>
         <div className='interviews-section'>
-          {dummyInterviews.map((interview) => (
-            <InterviewCard {...interview} key={interview.id}/>
-          ))}
+          {
+            hasUpcomingInterviews ? (
+              latestInterviews?.map((interview) => (
+                <InterviewCard {...interview} key={interview.id}/>
 
-          {dummyInterviews.length === 0 && (
-            <p>There are no interviews yet.</p>
-          )}
+              ))
+            ) : (
+              <p>There are no interviews available yet.</p>
+            )
+          }
         </div>
       </section>
     </>
