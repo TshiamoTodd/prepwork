@@ -154,8 +154,6 @@ export async function getLatestInterviews(params: GetLatestInterviewsParams): Pr
         .limit(limit)
         .get()
 
-        console.log({interviews})
-
         if(interviews.empty) {
             return null
         }
