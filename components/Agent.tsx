@@ -19,16 +19,18 @@ interface SavedMessage {
     content: string,
 }
 
-const Agent = ({userName, userId, type, interviewId, questions}: AgentProps) => {
+const Agent = ({userName, userId, type, feedbackId, interviewId, questions}: AgentProps) => {
     const [callStatus, setCallStatus] = useState<CallStatus>(CallStatus.INACTIVE)
     const [isSpeaking, setIsSpeaking] = useState(false)
     const [messages, setMessages] = useState<SavedMessage[]>([])
+    const [latestMessage, setLatestMessage] = useState<string>("");
 
     const router = useRouter()
 
     useEffect(() => {
         const onCallStart = () => setCallStatus(CallStatus.ACTIVE)
         const onCallEnd = () => setCallStatus(CallStatus.FINISHED)
+
         const onMessage = (message: Message) => {
             if(message.type === 'transcript' && message.transcriptType === 'final') {
                 const newMessage = {role: message.role, content: message.transcript}
@@ -58,32 +60,35 @@ const Agent = ({userName, userId, type, interviewId, questions}: AgentProps) => 
         }
     }, [])
 
-    const handleGenerateFeedback = async () => {
-        console.log('Generate feedback here')
-        //TODO: Create server action that generates the feedback
-        const {success, feedbackId: id} = await createFeedback({
-            interviewId: interviewId!,
-            userId: userId!,
-            transcript: messages
-        })
-
-        if(success && id) {
-            router.push(`/interview/${interviewId}/feedback`)
-        } else {
-            console.log('Failed to generate feedback')
-            router.push('/')
-        }
-    }
-
+    
     useEffect(() => {
+        if (messages.length > 0) {
+            setLatestMessage(messages[messages.length - 1].content);
+        }
+
+        const handleGenerateFeedback = async (messages: SavedMessage[]) => {
+            console.log('Generate feedback here')
+            const {success, feedbackId: id} = await createFeedback({
+                interviewId: interviewId!,
+                userId: userId!,
+                transcript: messages
+            })
+    
+            if(success && id) {
+                router.push(`/interview/${interviewId}/feedback`)
+            } else {
+                console.log('Failed to generate feedback')
+                router.push('/')
+            }
+        }
         if(callStatus === CallStatus.FINISHED) {
             if(type === 'generate') {
                 router.push('/')
             } else {
-                handleGenerateFeedback()
+                handleGenerateFeedback(messages)
             }
         }
-    }, [messages, callStatus, type, userId])
+    }, [messages, callStatus, feedbackId, interviewId, router, type, userId])
 
     const handleCall = async () => {
         setCallStatus(CallStatus.CONNECTING)
@@ -118,7 +123,6 @@ const Agent = ({userName, userId, type, interviewId, questions}: AgentProps) => 
         vapi.stop()
     }
 
-    const latestMessage = messages[messages.length - 1]?.content
     const isCallInactiveOrFinished = callStatus === CallStatus.INACTIVE || callStatus === CallStatus.FINISHED
 
     
